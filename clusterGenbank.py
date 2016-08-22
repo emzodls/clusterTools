@@ -268,3 +268,13 @@ def removeUndefSeqs(fileName):
 def batch_process_wrapper(fileName):
     batch_process([fileName],outputPath='/Volumes/Data/new_refseq/',
                   inclNtCDS=False,inclProm=False)
+def fetchSeqFromEntry(entry,seqSet,outputFile):
+    if entry.id in seqSet:
+        with open(outputFile,'ab') as outfile:
+            SeqIO.write(entry,outfile,'fasta')
+
+
+def fetchSeqFromDB(database,seqSet,outputFile):
+    for entry in database:
+        fetchSeqFromEntry(entry,seqSet,outputFile)
+

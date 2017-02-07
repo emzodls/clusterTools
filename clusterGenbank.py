@@ -45,17 +45,16 @@ def fetchClusterGenbanks(clusterDict,window,targetDir ="./",writeSummary = False
         name = Entrez.read(search_handle)[0]["GBSeq_definition"]
         search_handle.close()
         sys.stderr.write( "Found %s GI: %s, Species: %s \n" % (len(giList), ", ".join(giList[:10]),name))
-
         for idx,cluster in enumerate(clusters):
             clusterMidpoint = sum(cluster.location)/2.
             sys.stderr.write( "Fetching cluster %i \n" % (idx + 1) )
-            window_start = max(1,clusterMidpoint- window/2)
-            window_end = clusterMidpoint + window/2
+            window_start = int(max(1,clusterMidpoint- window/2))
+            window_end = int(clusterMidpoint + window/2)
             cluster_filename = "%s/%s-%i-%i.gbk" % (targetDir,species,window_start,window_end)
             try:
-                handle = Entrez.efetch(db=db, id=giList[0], rettype="gbwithparts",strand=1,seq_start=window_start,seq_stop=window_end)
+                fetch_handle = Entrez.efetch(db=db, id=giList[0], rettype="gbwithparts",strand=1,seq_start=str(window_start),seq_stop=str(window_end))
                 with open(cluster_filename,'wb') as genbank_file:
-                    genbank_file.write(handle.read())
+                    genbank_file.write(fetch_handle.read())
                 if writeSummary:
                     proteins = ','.join(protein.name for protein in cluster)
                     with open('%s/downloadSummary.tsv'% targetDir,'ab') as outfile:
@@ -79,8 +78,8 @@ def fetchGbNucl(targets,window,targetDir ="./",writeSummary = False):
         search_handle.close()
         sys.stderr.write( "Found %s GI: %s, Species: %s \n" % (len(giList), ", ".join(giList[:10]),name))
         clusterMidpoint = sum(location)/2.
-        window_start = max(1,clusterMidpoint- window/2)
-        window_end = clusterMidpoint + window/2
+        window_start = int(max(1,clusterMidpoint- window/2))
+        window_end = int(clusterMidpoint + window/2)
         cluster_filename = "%s/%s-%i-%i.gbk" % (targetDir,species,window_start,window_end)
         try:
             handle = Entrez.efetch(db=db, id=giList[0], rettype="gbwithparts",strand=1,seq_start=window_start,seq_stop=window_end)
@@ -127,9 +126,9 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
         # See if user wants a different name
         for genbank_entry in genbank_entries:
             if speciesOverride:
-                species_id = speciesOverride
+                species_id = speciesOverride + '_%i' % entry_ctr
             else:
-                species_id = genbank_file.split('/')[-1].split('.')[0]
+                species_id = genbank_file.split('/')[-1].split('.')[0] + '_%i' % entry_ctr
                 if '' != genbank_entry.name:
                     species_id = genbank_entry.name
                 elif '' != genbank_entry.id:
@@ -168,8 +167,19 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                     prot_seq = Seq.Seq(CDS.qualifiers['translation'][0])
                     if direction == 1:
                         direction_id = '+'
+                        if inclProm:
+                            promoter_start = max(0,gene_start-upstream_size)
+                            promoter_end = max(0,gene_start)
+                            assert promoter_start <= promoter_end
+                            promoter = genbank_entry.seq[promoter_start:promoter_end]
+
                     else:
                         direction_id = '-'
+                        if inclProm:
+                            promoter_start = max(0,gene_end)
+                            promoter_end = max(0,gene_end+upstream_size)
+                            assert promoter_start <= promoter_end
+                            promoter = genbank_entry.seq[promoter_start:promoter_end].reverse_complement()
                 else:
 
                     if direction == 1:

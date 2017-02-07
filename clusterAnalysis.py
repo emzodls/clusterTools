@@ -27,9 +27,12 @@ from copy import copy,deepcopy
 from collections import defaultdict
 from sortedcontainers import SortedDict, SortedListWithKey
 from operator import itemgetter
-from bx.intervals.intersection import Intersecter, Interval
+from bx.intervals.intersection import IntervalTree, Interval
 from Bio import SeqIO
-from itertools import count,repeat,groupby,izip
+from itertools import count,repeat,groupby
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+import subprocess,os
 
 class hitDict():
     def __init__(self):
@@ -146,7 +149,7 @@ class Protein():
         try:
             return self.sequence[coordinates[0]-1:coordinates[1]]
         except Exception as exc:
-            print 'Excepction: %s' % exc.message
+            print('Excepction: %s' % exc.message)
             return ''
     def getAnnotations(self,anotID):
         if anotID in self.annotations.keys():
@@ -194,13 +197,13 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
     gene_hits = SortedDict()
     redoFlag = True
     while redoFlag:
-        if verbose: print "Sorting through intervals", pfam_hit_dict
+        if verbose: print("Sorting through intervals", pfam_hit_dict)
         redoFlag = False
-        intervals_scores = [(key,value[1]) for key,value in pfam_hit_dict.iteritems()]
+        intervals_scores = [(key,value[1]) for key,value in pfam_hit_dict.items()]
         # sort intervals from pfam hits by score and place the highest score first
         intervals_scores.sort(key=itemgetter(1),reverse=True)
         # initialize intersect tree for quick overlap search
-        intersectTree = Intersecter()
+        intersectTree = IntervalTree()
         #add the intervals with the highest scores first
         for (interval,score) in intervals_scores:
             intervalStart = interval[0]
@@ -217,7 +220,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
 
                     # interval completely covers existing coverage, break up into two intervals and redo the process
                     if (intervalStart <= start and intervalEnd >= end):
-                        if verbose: print "Split Interval", interval,intersectingIntervals, pfam_hit_dict[interval]
+                        if verbose: print("Split Interval", interval,intersectingIntervals, pfam_hit_dict[interval])
                         left_scale = calculate_window((intervalStart,start-1))/intervalLength
                         right_scale = calculate_window((end+1,intervalEnd))/intervalLength
                         pfam_hit_dict[(intervalStart,start-1)] = (pfam_hit_dict[interval][0],
@@ -247,24 +250,24 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                         intersectingIntervals = [(x.start,x.end) for x in intersectTree.find(intervalStart,intervalEnd)]
 
                 if redoFlag:
-                    if verbose: print "Exiting For Loop to Reinitialize",pfam_hit_dict
+                    if verbose: print("Exiting For Loop to Reinitialize",pfam_hit_dict)
                     break
                 # if loop did not break because of an overlap add the annotation after resolving overlap,
                 # check for minimum length after you merge intervals
                 elif not overLapFlag and intervalLength > minDomSize:
-                    if verbose: print "Adding Hit",(intervalStart,intervalEnd),pfam_hit_dict[interval][0]
+                    if verbose: print("Adding Hit",(intervalStart,intervalEnd),pfam_hit_dict[interval][0])
                     # scale the hitCoverage based on the reduction this works since interval is a tuple and isn't mutated
                     hitCoverage = pfam_hit_dict[interval][2]*(intervalLength/(interval[1]-interval[0]+1.))
                     gene_hits[(intervalStart,intervalEnd)] = (pfam_hit_dict[interval][0],
                                                               pfam_hit_dict[interval][1],
                                                               hitCoverage)
                     intersectTree.add_interval(Interval(intervalStart,intervalEnd))
-    if verbose: print "Merging Hits"
+    if verbose: print("Merging Hits")
     # Merge Windows Right Next to one another that have the same pFam ID,
     # redoFlag: need to restart the process after a successful merge
     redoFlag = True
     while redoFlag:
-        for idx in xrange(len(gene_hits)-1):
+        for idx in range(len(gene_hits)-1):
             left_hit = gene_hits.keys()[idx]
             right_hit = gene_hits.keys()[idx+1]
             left_window_size = calculate_window(left_hit)
@@ -284,20 +287,20 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                 redoFlag = True
                 del gene_hits[left_hit]
                 del gene_hits[right_hit]
-                if verbose: print "Merged", left_hit,right_hit
+                if verbose: print("Merged", left_hit,right_hit)
                 break
         else:
             redoFlag = False
-    if verbose: print "Deleting Domains Under Minimum Domain Size"
+    if verbose: print("Deleting Domains Under Minimum Domain Size")
     # Finally check if any of the domains are less than the minimum domain size
     keysToDelete = [coordinates for coordinates in gene_hits.keys() if calculate_window(coordinates) < minDomSize]
     for key in keysToDelete:
         del gene_hits[key]
-        if verbose: print "Deleting",key
-    if verbose: print "Final Annotation", gene_hits
+        if verbose: print("Deleting",key)
+    if verbose: print("Final Annotation", gene_hits)
     return gene_hits
 
-def parse_allVall_blast_file(path,proteinDict,swapQuery=False,evalCutoff=10,scoreCutoff=0):
+def parse_allVall_blast_file(path,proteinDict,swapQuery=False,evalCutoff=10,scoreCutoff=0,speciesFilter = None):
     if swapQuery:
         queryIdx = 1
         hitIdx = 0
@@ -308,21 +311,54 @@ def parse_allVall_blast_file(path,proteinDict,swapQuery=False,evalCutoff=10,scor
         for line in blast_handle:
             line_parse = line.split('\t')
             query_parse = line_parse[queryIdx].split('|')
+            print(query_parse)
             species_id = query_parse[0]
-            coordinates = [int(x) for x in query_parse[1].split('-')]
-            direction = query_parse[2]
-            queryIntID = query_parse[3]
-            queryProtID = query_parse[4]
-            queryIntIdx = int(queryIntID.split('_')[-1])
-            protein = proteinDict.setdefault(queryIntID,Protein(species_id,queryProtID,queryIntID,
-                                            queryIntIdx,(tuple(coordinates),direction)))
-            hit_parse = line_parse[hitIdx].split('|')
-            hit_id = (hit_parse[4],hit_parse[3])
-            # assuming blast outfmt 6 output
-            score  = float(line_parse[11])
-            eval = float(line_parse[10])
-            if eval <= evalCutoff and score >= scoreCutoff:
-                protein.add_hit('blast',hit_id,score)
+            if ((not speciesFilter) or (species_id in speciesFilter)):
+                coordinates = [int(x) for x in query_parse[1].split('-')]
+                direction = query_parse[2]
+                queryIntID = query_parse[3]
+                queryProtID = query_parse[4]
+                queryIntIdx = int(queryIntID.split('_')[-1])
+                protein = proteinDict.setdefault(queryIntID,Protein(species_id,queryProtID,queryIntID,
+                                                queryIntIdx,(tuple(coordinates),direction)))
+                hit_parse = line_parse[hitIdx].split('|')
+                print(hit_parse)
+                hit_id = (hit_parse[4],hit_parse[3])
+                # assuming blast outfmt 6 output
+                score  = float(line_parse[11])
+                eval = float(line_parse[10])
+                if eval <= evalCutoff and score >= scoreCutoff:
+                    protein.add_hit('blast',hit_id,score)
+    return proteinDict
+
+def parseBLAST(path,proteinDict,swapQuery=False,evalCutoff=10,scoreCutoff=0,speciesFilter = None):
+    if swapQuery:
+        queryIdx = 1
+        hitIdx = 0
+    else:
+        queryIdx = 0
+        hitIdx = 1
+    with open(path) as blast_handle:
+        for line in blast_handle:
+            try:
+                line_parse = line.split('\t')
+                query_parse = line_parse[queryIdx].split('|')
+                species_id = query_parse[0]
+                if ((not speciesFilter) or (species_id in speciesFilter)):
+                    coordinates = [int(x) for x in query_parse[1].split('-')]
+                    direction = query_parse[2]
+                    queryIntID = query_parse[3]
+                    queryProtID = query_parse[4]
+                    queryIntIdx = int(queryIntID.split('_')[-1])
+                    protein = proteinDict.setdefault(queryIntID,Protein(species_id,queryProtID,queryIntID,
+                                                    queryIntIdx,(tuple(coordinates),direction)))
+                    hit_id = line_parse[hitIdx]
+                    score  = float(line_parse[11])
+                    eval = float(line_parse[10])
+                    if eval <= evalCutoff and score >= scoreCutoff:
+                        protein.add_hit('blast',hit_id,score)
+            except (ValueError,IndexError):
+                pass
     return proteinDict
 
 def calculate_window(coordinates):
@@ -497,7 +533,7 @@ def export_hit_summary(multiClusterDict,outfile,hitDictID,maxJump = 100,minClust
                        hitsToIgnore = set(),writeFile=False):
     # First Unpack Cluster Analysis to Filter Eligible Clusters
     filtered_clusters = SortedListWithKey(key=lambda x: -clusterHits)
-    for (species,species_clusters) in multiClusterDict.iteritems():
+    for (species,species_clusters) in multiClusterDict.items():
         for cluster in species_clusters:
             clusterHits = len(cluster)
             if hitsToConsider:
@@ -541,9 +577,9 @@ def export_hit_summary(multiClusterDict,outfile,hitDictID,maxJump = 100,minClust
                     else:
                         clusterHits = len(cluster) - \
                                             sum([1 for protein in cluster if len(hitsToIgnore & protein.hit_dict[hitDictID].hits) > 0])
-                    print cluster
+                    print(cluster)
                     filtered_clusters.add(cluster)
-    print "Found %i clusters" % len(filtered_clusters)
+    print("Found %i clusters" % len(filtered_clusters))
     if writeFile:
         with open(outfile,'w') as outHandle:
             outHandle.write('Protein Hit\tProtein Idx\tCluster Hit\n')
@@ -562,7 +598,7 @@ def export_hit_summary(multiClusterDict,outfile,hitDictID,maxJump = 100,minClust
                         outHandle.write('%s\t%i\tNo Hits\n'% (protein.name,protein.idx))
 
     return filtered_clusters
-def add_sequences(fastaFile,proteinDict):
+def add_sequences(fastaFile,proteinDict,speciesFilter = None):
     '''
     :param proteinDict: {'protein_ID':protein}
     :param fastaFile: fasta file of sequences with header as follows >speciesID_record|nucl pos|direction|int ID|protein ID
@@ -571,13 +607,14 @@ def add_sequences(fastaFile,proteinDict):
     for entry in SeqIO.parse(fastaFile,'fasta'):
         entry_parse = entry.name.split('|')
         species_id = entry_parse[0]
-        coordinates = [int(x) for x in entry_parse[1].split('-')]
-        direction = entry_parse[2]
-        geneIntID = entry_parse[3]
-        geneProtID = entry_parse[4]
-        geneIntIdx = int(geneIntID.split('_')[-1])
-        protein = proteinDict.setdefault(geneIntID,Protein(species_id,geneProtID,geneIntID,geneIntIdx,(tuple(coordinates),direction)))
-        protein.sequence = str(entry.seq[:-1])
+        if ((not speciesFilter) or (species_id in speciesFilter)):
+            coordinates = [int(x) for x in entry_parse[1].split('-')]
+            direction = entry_parse[2]
+            geneIntID = entry_parse[3]
+            geneProtID = entry_parse[4]
+            geneIntIdx = int(geneIntID.split('_')[-1])
+            protein = proteinDict.setdefault(geneIntID,Protein(species_id,geneProtID,geneIntID,geneIntIdx,(tuple(coordinates),direction)))
+            protein.sequence = str(entry.seq[:-1])
     return proteinDict
 
 def merge_annotations(protein,mergedID,anot1,anot2,minDomSize,delOrig = False):
@@ -664,7 +701,7 @@ def retDomStringsProt(cluster,anot_key,delim,mergeSameDir=True):
         proteinNames = (protein.name for protein in cluster)
         contig_groups = groupby(iter(zip(count(0),annotations,proteinNames)),lambda x: directions[x[0]])
         for direction,contig_group in contig_groups:
-            hitProtPairs = map(lambda x: izip(x[1],repeat(x[2])),list(contig_group))
+            hitProtPairs = map(lambda x: zip(x[1],repeat(x[2])),list(contig_group))
             if direction == '+':
                 yield map(lambda x: delim.join(x),zip(*map(lambda y: map(lambda z:delim.join(z),zip(*y)),hitProtPairs)))
             else:
@@ -691,3 +728,36 @@ def filter_hmmsearch_hmmStartEnd(path,hmmstartUpperBound,hmmendLowerBound,outfil
                     if hmm_coverage_start < hmmstartUpperBound and hmm_coverage_end > hmmendLowerBound and hmm_coverage > hmmcoverageFilter:
                         with open(outfile,'ab') as outHandle:
                             outHandle.write(line)
+
+def predictDisorder(protein,pathToIUPRED):
+    '''
+    Given a protein with a sequence will use IUPred to get a per residue probability for IUPred to add in annotations
+    requires IUPred installer
+    :param protein:
+    :param pathToIUPRED:
+    :return: protein with IUPred annotation added
+    '''
+    if protein.sequence == '':
+        print("Need sequence information for protein to run this")
+        return protein
+    else:
+        currentDir = os.getcwd()
+        tmpFastaFile = os.getcwd() + os.sep + protein.name + ".fasta"
+        tmpRecord = SeqRecord(Seq(protein.sequence),id=protein.fastaID)
+        SeqIO.write(tmpRecord,open(tmpFastaFile,'w'),'fasta')
+
+        os.chdir(pathToIUPRED)
+        IUPredout = subprocess.Popen('./iupred %s short' % tmpFastaFile,shell=True,stdout=subprocess.PIPE)
+        protein.annotations['IUPRED'] = []
+        for line in IUPredout.stdout:
+            if line[0] == '#':
+                pass
+            else:
+                protein.annotations['IUPRED'].append(float(line.strip().split()[-1]))
+
+        assert len(protein.annotations['IUPRED']) == len(protein.sequence)
+
+        os.chdir(currentDir)
+        os.remove(tmpFastaFile)
+
+        return protein

@@ -35,7 +35,7 @@ def fetchClusterGenbanks(clusterDict,window,targetDir ="./",writeSummary = False
     Entrez.email = "some_email@somedomain.com"
     retmax = 10**9
     if writeSummary:
-        with open('%s/downloadSummary.tsv'% targetDir,'wb') as outfile:
+        with open('%s/downloadSummary.tsv'% targetDir,'w') as outfile:
             outfile.write('# Nucleotide Accession\tSpecies\tProtein Hits\tLocation\tWindow Size\n')
     for species,clusters in clusterDict.iteritems():
         species = species.split('.')[0]
@@ -53,14 +53,14 @@ def fetchClusterGenbanks(clusterDict,window,targetDir ="./",writeSummary = False
             cluster_filename = "%s/%s-%i-%i.gbk" % (targetDir,species,window_start,window_end)
             try:
                 fetch_handle = Entrez.efetch(db=db, id=giList[0], rettype="gbwithparts",strand=1,seq_start=str(window_start),seq_stop=str(window_end))
-                with open(cluster_filename,'wb') as genbank_file:
+                with open(cluster_filename,'w') as genbank_file:
                     genbank_file.write(fetch_handle.read())
                 if writeSummary:
                     proteins = ','.join(protein.name for protein in cluster)
-                    with open('%s/downloadSummary.tsv'% targetDir,'ab') as outfile:
+                    with open('%s/downloadSummary.tsv'% targetDir,'a') as outfile:
                         outfile.write('%s\t%s\t%s\t%i-%i\t%i\n' % (species,name,proteins,window_start,window_end,window_end-window_start))
             except IndexError:
-                print "Empty GI list for: %s" % species
+                print("Empty GI list for: %s" % species)
 
 def fetchGbNucl(targets,window,targetDir ="./",writeSummary = False):
     db = "nuccore"
@@ -83,20 +83,20 @@ def fetchGbNucl(targets,window,targetDir ="./",writeSummary = False):
         cluster_filename = "%s/%s-%i-%i.gbk" % (targetDir,species,window_start,window_end)
         try:
             handle = Entrez.efetch(db=db, id=giList[0], rettype="gbwithparts",strand=1,seq_start=window_start,seq_stop=window_end)
-            with open(cluster_filename,'wb') as genbank_file:
+            with open(cluster_filename,'w') as genbank_file:
                 genbank_file.write(handle.read())
             if writeSummary:
                 with open('%s/downloadSummary.tsv'% targetDir,'ab') as outfile:
                     outfile.write('%s\t%s\t%i-%i\t%i\n' % (species,name,window_start,window_end,window_end-window_start))
         except IndexError:
-            print "Empty GI list for: %s" % species
+            print("Empty GI list for: %s" % species)
 
 
 def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                   offSet = 0, upstream_size = 200, inclNtCDS = True, inclProm = True,singleFile=False,includeORF = False):
     for genbank_file in genbank_file_list:
 
-        print "Parsing: %s" % genbank_file
+        print("Parsing: %s" % genbank_file)
 
         if '.gz' in genbank_file:
             genbank_entries = SeqIO.parse(gzip.open(genbank_file),'genbank')
@@ -227,7 +227,7 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                     nucl_entry = SeqRecord(nt_seq,id='%s|%i-%i|%s|%s|%s' % (species_id,offSet+gene_start+1,
                                                                             offSet+gene_end,direction_id,internal_id,protein_id),
                                                description = '%s in %s' % (protein_id,species_id))
-                    with open(CDS_nt_outfile_name,'ab') as outfile_handle:
+                    with open(CDS_nt_outfile_name,'a') as outfile_handle:
                         SeqIO.write(nucl_entry,outfile_handle,'fasta')
 
                 # Write protein file
@@ -235,7 +235,7 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                     prot_entry = SeqRecord(prot_seq,id='%s|%i-%i|%s|%s|%s' % (species_id,offSet+gene_start+1,
                                                                             offSet+gene_end,direction_id,internal_id,protein_id),
                                                description = '%s in %s' % (protein_id,species_id))
-                    with open(CDS_prot_outfile_name,'ab') as outfile_handle:
+                    with open(CDS_prot_outfile_name,'a') as outfile_handle:
                         SeqIO.write(prot_entry,outfile_handle,'fasta')
 
                 # Write Promoters File
@@ -243,7 +243,7 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                     promoter_entry = SeqRecord(promoter,id='%s|%i-%i|%s|%s|%s_upstream' % (species_id,offSet+promoter_start+1,
                                                                     offSet+promoter_end,direction_id,promoter_internal,protein_id),
                         description = '%i nucleotides upstream of %s in %s' % (upstream_size,protein_id,species_id))
-                    with open(promoters_outfile_name,'ab') as outfile_handle:
+                    with open(promoters_outfile_name,'a') as outfile_handle:
                         SeqIO.write(promoter_entry,outfile_handle,'fasta')
             entry_ctr +=1
 
@@ -270,8 +270,8 @@ def removeUndefSeqs(fileName):
     fastaFile = SeqIO.parse(fileName,'fasta')
     filtered = (rec for rec in fastaFile if any (ch != 'X' for ch in rec.seq))
     outFile = '%s/%s_clean.fasta' % ('/'.join(fileName.split('/')[:-1]),baseName)
-    print outFile
-    with open(outFile,'ab') as outFileHandle:
+    print(outFile)
+    with open(outFile,'a') as outFileHandle:
         SeqIO.write(filtered,outFileHandle,'fasta')
 
 
@@ -280,7 +280,7 @@ def batch_process_wrapper(fileName):
                   inclNtCDS=False,inclProm=False)
 def fetchSeqFromEntry(entry,seqSet,outputFile):
     if entry.id in seqSet:
-        with open(outputFile,'ab') as outfile:
+        with open(outputFile,'a') as outfile:
             SeqIO.write(entry,outfile,'fasta')
 
 

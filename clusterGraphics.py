@@ -29,6 +29,8 @@ from Bio.SeqFeature import SeqFeature, FeatureLocation
 from Bio.Graphics import GenomeDiagram
 from Bio.Graphics.GenomeDiagram import CrossLink
 from reportlab.lib import colors
+import math
+import numpy as np
 '''
 color generation from:
 http://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
@@ -64,8 +66,8 @@ flatten = chain.from_iterable
 
 def _get_colors_Janus(num_colors):
     fracGen = getfracs()
-    fracs = [fracGen.next() for i in xrange((num_colors+1)/2)]
-    rgbs = map(genrgb,flatten(map(genhsv,fracs)))
+    fracs = [next(fracGen) for i in range(int((num_colors+1)/2))]
+    rgbs = list(map(genrgb,flatten(list(map(genhsv,fracs)))))
     return rgbs[:num_colors]
 
 def _get_colors(num_colors):

@@ -153,7 +153,10 @@ def batch_process(genbank_file_list, outputPath = '.',speciesOverride = None,
                 nt_seq = genbank_seq.seq
 
                 # Try to find a common name for the promoter, otherwise just use the internal ID
-                if 'protein_id' in CDS.qualifiers.keys():
+
+                if 'gene_synonym' in CDS.qualifiers.keys():
+                    protein_id = CDS.qualifiers['gene_synonym'][0]
+                elif 'protein_id' in CDS.qualifiers.keys():
                     protein_id = CDS.qualifiers['protein_id'][0]
                 else:
                     for feature in genbank_seq.features:

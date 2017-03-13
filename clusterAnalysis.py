@@ -392,6 +392,38 @@ def cluster_proteins(proteins,window_size):
         # for each cluster in the species check if the protein will fit without going over the frame window
     return cluster_dict
 
+def clusterProteins(proteins,windowSize):
+    '''
+    Given a list of proteins and a window size will return a dictionary whose key is the species and elements are
+    clusters of different proteins in the species. This modifies the old cluster proteins method, sorting the proteins by
+    species first based on coordinates, and then sorting them together
+    :param proteins: List of Protein objects, window_size
+    :return: dictionary {species:[clusters]}
+    '''
+    proteinsBySpecies = dict()
+    cluster_dict = dict()
+    # group proteins by species
+    for protein in proteins:
+        speciesProteins = proteinsBySpecies.setdefault(protein.species,[])
+        speciesProteins.append(protein)
+    # sort each of the species lists by coordinates
+    for proteins in proteinsBySpecies.values():
+        proteins.sort(key=lambda x: x.location)
+    # Now cluster the proteins
+    for species,proteins in proteinsBySpecies.items():
+        for protein in proteins:
+            clusters = cluster_dict.setdefault(species,[Cluster([protein])])
+            for cluster in clusters:
+                new_coords = list(copy(cluster.location))
+                new_coords.extend(protein.location[0])
+                new_coords.sort()
+                if calculate_window(new_coords) <= windowSize:
+                    cluster.add(protein)
+            # add protein as a new cluster in case
+            clusters.append(Cluster([protein]))
+    return cluster_dict
+
+
 def parse_hmmscan_domtbl_anot(path,minDomSize,anotID,proteinDict,cutoff_score=25,verbose = False):
     """
     :param path: path to pfam hits that you want parsed

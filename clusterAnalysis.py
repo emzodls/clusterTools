@@ -421,6 +421,17 @@ def clusterProteins(proteins,windowSize):
                     cluster.add(protein)
             # add protein as a new cluster in case
             clusters.append(Cluster([protein]))
+    ## now remove any subset clusters
+    for species,clusters in cluster_dict.items():
+        clusters.sort(key=lambda x:len(x),reverse=True)
+        keepFilter = [True for cluster in clusters]
+        for biggerIdx in range(len(clusters)):
+            for smallerIdx in range(biggerIdx+1,len(clusters)):
+                biggerClusterProts = set(protein for protein in clusters[biggerIdx])
+                smallerClusterProts = set(protein for protein in clusters[smallerIdx])
+                if len(smallerClusterProts - biggerClusterProts) == 0:
+                    keepFilter[smallerIdx] = False
+        cluster_dict[species] = [cluster for idx,cluster in enumerate(clusters) if keepFilter[idx]]
     return cluster_dict
 
 
@@ -793,3 +804,14 @@ def predictDisorder(protein,pathToIUPRED):
         os.remove(tmpFastaFile)
 
         return protein
+
+if __name__ == "__main__":
+    prots = dict()
+    prots = parseBLAST('/Users/emzodls/Dropbox/Lab/Warwick/UPLB_Collab/mmyR/mmyR.clusterTools.blast',prots,swapQuery=True)
+    clusters = clusterProteins(prots.values(),15000)
+    for species,clusters in clusters.items():
+        print(species)
+        for cluster in clusters:
+            if len(cluster) >= 3:
+                print(cluster)
+

@@ -311,7 +311,7 @@ def parse_allVall_blast_file(path,proteinDict,swapQuery=False,evalCutoff=10,scor
         for line in blast_handle:
             line_parse = line.split('\t')
             query_parse = line_parse[queryIdx].split('|')
-            print(query_parse)
+            #print(query_parse)
             species_id = query_parse[0]
             if ((not speciesFilter) or (species_id in speciesFilter)):
                 coordinates = [int(x) for x in query_parse[1].split('-')]
@@ -322,7 +322,7 @@ def parse_allVall_blast_file(path,proteinDict,swapQuery=False,evalCutoff=10,scor
                 protein = proteinDict.setdefault(queryIntID,Protein(species_id,queryProtID,queryIntID,
                                                 queryIntIdx,(tuple(coordinates),direction)))
                 hit_parse = line_parse[hitIdx].split('|')
-                print(hit_parse)
+                #print(hit_parse)
                 hit_id = (hit_parse[4],hit_parse[3])
                 # assuming blast outfmt 6 output
                 score  = float(line_parse[11])

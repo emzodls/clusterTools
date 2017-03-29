@@ -111,7 +111,7 @@ def calculateDistBitScore(cluster1,cluster2,hitDictID):
     pairings = [(x,y) for x,y in zip(*linear_sum_assignment(scoreMatrix)) if (x<clus1Size) and (y<clus2Size)]
     pairScores = [(scoreMatrix[(x,y)],cluster1[x],cluster2[y]) for x,y in pairings]
     pairs = [(x,y,z) for x,y,z in pairScores if x < 1.]
-    pairs.sort()
+    pairs.sort(key=lambda x:x[0])
     # figure out which cluster has the hits and calculate coverage
 
     clus1Flag = sum(1 for protein in cluster1 if protein.hitName in protein.hit_dict[hitDictID].hits) == clus1Size

@@ -158,7 +158,7 @@ class Protein():
             return set()
     def getDomStr(self,anotID,delim):
         if anotID in self.annotations.keys():
-            return delim.join(hit[0] for hit in self.annotations[anotID].itervalues())
+            return delim.join(hit[0] for hit in self.annotations[anotID].values())
         else:
             return ''
 
@@ -621,9 +621,11 @@ def merge_annotations(protein,mergedID,anot1,anot2,minDomSize,delOrig = False):
     merged = SortedDict()
     # added code for no hits
     if anot1 in protein.annotations.keys():
-        merged.update(deepcopy(protein.annotations[anot1].items()))
+        for loc,annot in protein.annotations[anot1].items():
+            merged[loc] = deepcopy(annot)
     if anot2 in protein.annotations.keys():
-        merged.update(deepcopy(protein.annotations[anot2].items()))
+        for loc,annot in protein.annotations[anot2].items():
+            merged[loc] = deepcopy(annot)
     merged = resolve_conflicts(merged,minDomSize=minDomSize)
     if len(merged) > 0:
         protein.annotations[mergedID] = merged
@@ -672,11 +674,11 @@ def retDomStrings(cluster,anot_key,delim,mergeSameDir=True):
     '''
     if not mergeSameDir:
         for protein in cluster:
-            yield delim.join(hit[0] for hit in protein.annotations[anot_key].itervalues())
+            yield delim.join(hit[0] for hit in protein.annotations[anot_key].values())
     else:
         directions = [protein.location[1] for protein in cluster]
         # protein.annotations.get(anot_key,{protein.location[0]:('NO_HIT',-1,1)}).itervalues()
-        annotations = ((hit[0] for hit in protein.annotations[anot_key].itervalues())
+        annotations = ((hit[0] for hit in protein.annotations[anot_key].values())
                        for protein in cluster)
         contig_groups = groupby(iter(zip(count(0),annotations)),lambda x: directions[x[0]])
         for direction,contig_group in contig_groups:
@@ -693,10 +695,10 @@ def retDomStringsProt(cluster,anot_key,delim,mergeSameDir=True):
     '''
     if not mergeSameDir:
         for protein in cluster:
-            yield delim.join(hit[0] for hit in protein.annotations[anot_key].itervalues())
+            yield delim.join(hit[0] for hit in protein.annotations[anot_key].values())
     else:
         directions = [protein.location[1] for protein in cluster]
-        annotations = ((hit[0] for hit in protein.annotations[anot_key].itervalues())
+        annotations = ((hit[0] for hit in protein.annotations[anot_key].values())
                        for protein in cluster)
         proteinNames = (protein.name for protein in cluster)
         contig_groups = groupby(iter(zip(count(0),annotations,proteinNames)),lambda x: directions[x[0]])

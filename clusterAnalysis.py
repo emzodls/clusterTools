@@ -417,7 +417,7 @@ def clusterProteins(proteins,windowSize):
                 new_coords = list(copy(cluster.location))
                 new_coords.extend(protein.location[0])
                 new_coords.sort()
-                if calculate_window(new_coords) <= windowSize:
+                if calculate_window(new_coords) <= windowSize and protein not in set(x for x in cluster):
                     cluster.add(protein)
             # add protein as a new cluster in case
             clusters.append(Cluster([protein]))
@@ -657,7 +657,10 @@ def add_sequences(fastaFile,proteinDict,speciesFilter = None):
             geneProtID = entry_parse[4]
             geneIntIdx = int(geneIntID.split('_')[-1])
             protein = proteinDict.setdefault(geneIntID,Protein(species_id,geneProtID,geneIntID,geneIntIdx,(tuple(coordinates),direction)))
-            protein.sequence = str(entry.seq[:-1])
+            if entry.seq[-1] == '*':
+                protein.sequence = str(entry.seq[:-1])
+            else:
+                protein.sequence = str(entry.seq)
     return proteinDict
 
 def merge_annotations(protein,mergedID,anot1,anot2,minDomSize,delOrig = False):
@@ -793,12 +796,13 @@ def predictDisorder(protein,pathToIUPRED):
         IUPredout = subprocess.Popen('./iupred %s short' % tmpFastaFile,shell=True,stdout=subprocess.PIPE)
         protein.annotations['IUPRED'] = []
         for line in IUPredout.stdout:
+            line = line.decode()
             if line[0] == '#':
                 pass
             else:
                 protein.annotations['IUPRED'].append(float(line.strip().split()[-1]))
 
-        assert len(protein.annotations['IUPRED']) == len(protein.sequence)
+        # assert len(protein.annotations['IUPRED']) == len(protein.sequence)
 
         os.chdir(currentDir)
         os.remove(tmpFastaFile)

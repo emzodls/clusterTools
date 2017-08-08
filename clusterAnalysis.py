@@ -24,7 +24,7 @@
 
 from math import log
 from copy import copy,deepcopy
-from collections import defaultdict
+from collections import defaultdict,Counter
 from sortedcontainers import SortedDict, SortedListWithKey
 from operator import itemgetter
 from bx.intervals.intersection import IntervalTree, Interval
@@ -156,6 +156,11 @@ class Protein():
             return set(x[0] for x in self.annotations[anotID].values())
         else:
             return set()
+    def getDomCts(self,anotID):
+        if anotID in self.annotations.keys():
+            return Counter(x[0] for x in self.annotations[anotID].values())
+        else:
+            return Counter()
     def getDomStr(self,anotID,delim):
         if anotID in self.annotations.keys():
             return delim.join(hit[0] for hit in self.annotations[anotID].itervalues())
@@ -667,9 +672,9 @@ def merge_annotations(protein,mergedID,anot1,anot2,minDomSize,delOrig = False):
     merged = SortedDict()
     # added code for no hits
     if anot1 in protein.annotations.keys():
-        merged.update(deepcopy(protein.annotations[anot1].items()))
+        merged.update(deepcopy(list(protein.annotations[anot1].items())))
     if anot2 in protein.annotations.keys():
-        merged.update(deepcopy(protein.annotations[anot2].items()))
+        merged.update(deepcopy(list(protein.annotations[anot2].items())))
     merged = resolve_conflicts(merged,minDomSize=minDomSize)
     if len(merged) > 0:
         protein.annotations[mergedID] = merged

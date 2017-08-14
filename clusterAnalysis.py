@@ -417,7 +417,7 @@ def clusterProteins(proteins,windowSize):
                 new_coords = list(copy(cluster.location))
                 new_coords.extend(protein.location[0])
                 new_coords.sort()
-                if calculate_window(new_coords) <= windowSize:
+                if calculate_window(new_coords) <= windowSize and protein not in cluster:
                     cluster.add(protein)
             # add protein as a new cluster in case
             clusters.append(Cluster([protein]))

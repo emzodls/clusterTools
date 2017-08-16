@@ -728,7 +728,7 @@ def retDomStrings(cluster,anot_key,delim,mergeSameDir=True):
             if direction == '+':
                 yield delim.join(map(lambda x: delim.join(x[1]),list(contig_group)))
             else:
-                yield delim.join(reversed(map(lambda x: delim.join(x[1]),list(contig_group))))
+                yield delim.join(reversed(list(map(lambda x: delim.join(x[1]),list(contig_group)))))
 
 def retDomStringsProt(cluster,anot_key,delim,mergeSameDir=True):
     '''
@@ -750,7 +750,7 @@ def retDomStringsProt(cluster,anot_key,delim,mergeSameDir=True):
             if direction == '+':
                 yield map(lambda x: delim.join(x),zip(*map(lambda y: map(lambda z:delim.join(z),zip(*y)),hitProtPairs)))
             else:
-                yield map(lambda x: delim.join(x),zip(*reversed(map(lambda y: map(lambda z:delim.join(z),zip(*y)),hitProtPairs))))
+                yield map(lambda x: delim.join(x),zip(*reversed(list(map(lambda y: map(lambda z:delim.join(z),zip(*y)),hitProtPairs)))))
 
 
 def filter_hmmsearch_hmmStartEnd(path,hmmstartUpperBound,hmmendLowerBound,outfile,hmmcoverageFilter=0,eval_cutoff=1e-5,cutoff_score=25):

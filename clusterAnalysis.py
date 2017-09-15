@@ -261,7 +261,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                     gene_hits[(intervalStart,intervalEnd)] = (pfam_hit_dict[interval][0],
                                                               pfam_hit_dict[interval][1],
                                                               hitCoverage)
-                    intersectTree.add_interval(Interval(intervalStart,intervalEnd))
+                    intersectTree.add_interval(Interval(float(intervalStart),intervalEnd))
     if verbose: print("Merging Hits")
     # Merge Windows Right Next to one another that have the same pFam ID,
     # redoFlag: need to restart the process after a successful merge

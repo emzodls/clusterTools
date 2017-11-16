@@ -795,7 +795,8 @@ def predictDisorder(protein,pathToIUPRED):
         IUPredout = subprocess.Popen('./iupred %s short' % tmpFastaFile,shell=True,stdout=subprocess.PIPE)
         protein.annotations['IUPRED'] = []
         for line in IUPredout.stdout:
-            if line[0] == '#':
+            line = line.decode()
+            if line.startswith('#'):
                 pass
             else:
                 protein.annotations['IUPRED'].append(float(line.strip().split()[-1]))

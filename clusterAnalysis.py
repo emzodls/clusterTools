@@ -224,7 +224,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                     start,end = intersectingIntervals[0]
 
                     # interval completely covers existing coverage, break up into two intervals and redo the process
-                    if (intervalStart <= start and intervalEnd >= end):
+                    if (intervalStart < start and intervalEnd > end):
                         if verbose: print("Split Interval", interval,intersectingIntervals, pfam_hit_dict[interval])
                         left_scale = calculate_window((intervalStart,start-1))/intervalLength
                         right_scale = calculate_window((end+1,intervalEnd))/intervalLength
@@ -524,8 +524,12 @@ def parse_hmmsearch_domtbl_anot(path,minDomSize,anotID,proteinDict,eval_cutoff=1
                         hmm_coverage = (hmm_coverage_end-hmm_coverage_start+1.)/hmm_length
                         gene_hmm_start = int(hit[17])
                         gene_hmm_end = int(hit[18])
-                        hit_dict[(gene_hmm_start,gene_hmm_end)] = (hmmer_hit,score,hmm_coverage)
+                        if (gene_hmm_start,gene_hmm_end) in hit_dict and score > hit_dict[(gene_hmm_start,gene_hmm_end)][1]:
+                            hit_dict[(gene_hmm_start,gene_hmm_end)] = (hmmer_hit,score,hmm_coverage)
+                        elif (gene_hmm_start,gene_hmm_end) not in hit_dict:
+                            hit_dict[(gene_hmm_start, gene_hmm_end)] = (hmmer_hit, score, hmm_coverage)
                         #first resolve overlaps with current gene dict
+                        if verbose: print('annotating {}'.format(protein.name))
                         hmmer_hits = resolve_conflicts(hit_dict,minDomSize=minDomSize,verbose = verbose)
                         if len(hmmer_hits) > 0:
                             protein.annotations[anotID] = hmmer_hits
@@ -805,9 +809,10 @@ def predictDisorder(protein,pathToIUPRED):
                 pass
             else:
                 protein.annotations['IUPRED'].append(float(line.strip().split()[-1]))
-
-        assert len(protein.annotations['IUPRED']) == len(protein.sequence)
-
+        try:
+            assert len(protein.annotations['IUPRED']) == len(protein.sequence)
+        except AssertionError:
+            print('Warning did not match {} {}'.format(len(protein.annotations['IUPRED']),len(protein.sequence)))
         os.chdir(currentDir)
         os.remove(tmpFastaFile)
 

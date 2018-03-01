@@ -29,7 +29,7 @@ from sortedcontainers import SortedDict, SortedListWithKey
 from operator import itemgetter
 from bx.intervals.intersection import IntervalTree, Interval
 from Bio import SeqIO
-from itertools import count,repeat,groupby
+from itertools import count,repeat,groupby,chain
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 import subprocess,os
@@ -738,6 +738,53 @@ def retDomStrings(cluster,anot_key,delim,mergeSameDir=True):
                 yield delim.join(map(lambda x: delim.join(x[1]),list(contig_group)))
             else:
                 yield delim.join(reversed(list(map(lambda x: delim.join(x[1]),list(contig_group)))))
+
+def retDomLists(cluster,anot_key,mergeSameDir=True):
+    domStrs = retDomStrings(cluster,anot_key,'**',mergeSameDir=mergeSameDir)
+    return [x.split('**') for x in domStrs]
+
+def retDomComp(cluster,anot_key,unannotated='UNK',guessUnkDoms=False,minDomSize=15):
+    '''
+    :param cluster: cluster object
+    :param anot_key: annotation to make domain string with
+    :return: [(direction,[geneIdx],[# domains per gene], [concatenated list of domains])]
+
+    makes list of continuous domain annotations (assuming direction and collinearity)
+    proteins in the cluster without any domain annotation will be annotated unknown
+    '''
+    ## first label proteins without hits as unannotated to avoid dictionary clashes
+    for prot in cluster:
+        if anot_key not in prot.annotations:
+            prot.annotations[anot_key] = SortedDict()
+            prot.annotations[anot_key][(1,prot.size())] = (unannotated,1,1)
+    if guessUnkDoms:
+        for protein in cluster:
+            windows = protein.annotations[anot_key].keys()
+            if calculate_window((1, windows[0][0] - 1)) >= minDomSize:
+                protein.annotations[anot_key][(1, windows[0][0] - 1)] = ('UNK',1, 1.)
+            if calculate_window((windows[-1][-1] + 1, protein.size())) >= minDomSize:
+                protein.annotations[anot_key][(windows[-1][-1] + 1, protein.size())] = ('UNK',1, 1.)
+            # First Line: set up unknown domain similar to domain format
+            # Second Line: to get the difference of the coordinates
+            # Third Line: Check if window in between hits meets the minimum domain size
+            iterator = (((firstWindow[1] + 1, secondWindow[0] - 1),
+                         ('UNK', 1, 1.))
+                        for firstWindow, secondWindow in zip(windows, windows[1:])
+                        if abs(secondWindow[0] - firstWindow[1] - 1) >= minDomSize)
+            protein.annotations[anot_key].update(iterator)
+
+    directions = [protein.location[1] for protein in cluster]
+    annotations = [[hit[0] for hit in protein.annotations[anot_key].values()]
+                   for protein in cluster]
+    num_annotations = [len(x) for x in annotations]
+    contig_groups = groupby(iter(zip(count(0), annotations, num_annotations)), lambda x: directions[x[0]])
+
+    output = []
+    for direction,contig in contig_groups:
+        idx,doms,cts = zip(*list(contig))
+        output.append((direction,list(idx),list(chain(*doms)),list(cts)))
+
+    return output
 
 def retDomStringsProt(cluster,anot_key,delim,mergeSameDir=True):
     '''

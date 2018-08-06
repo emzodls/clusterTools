@@ -27,7 +27,7 @@ from copy import copy,deepcopy
 from collections import defaultdict,Counter
 from sortedcontainers import SortedDict, SortedListWithKey
 from operator import itemgetter
-from bx.intervals.intersection import IntervalTree, Interval
+from intervaltree import IntervalTree, Interval
 from Bio import SeqIO
 from itertools import count,repeat,groupby,chain
 from Bio.SeqRecord import SeqRecord
@@ -282,7 +282,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
             intervalLength = intervalEnd-intervalStart+1
             # if the interval is less than the minimum domain size don't bother
             if intervalLength > minDomSize:
-                intersectingIntervals = [(x.start,x.end) for x in intersectTree.find(intervalStart,intervalEnd)]
+                intersectingIntervals = sorted([(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)])
                 overLapFlag = False
                 # for every interval that you're adding resolve the overlapping intervals
                 while len(intersectingIntervals) > 0 and intervalLength > 1:
@@ -318,7 +318,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                             intervalEnd = start - 1
                             # recalculate the interval length and see if there are still intersecting intervals
                         intervalLength = intervalEnd-intervalStart+1
-                        intersectingIntervals = [(x.start,x.end) for x in intersectTree.find(intervalStart,intervalEnd)]
+                        intersectingIntervals = sorted([(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)])
 
                 if redoFlag:
                     if verbose: print("Exiting For Loop to Reinitialize",pfam_hit_dict)
@@ -332,7 +332,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                     gene_hits[(intervalStart,intervalEnd)] = (pfam_hit_dict[interval][0],
                                                               pfam_hit_dict[interval][1],
                                                               hitCoverage)
-                    intersectTree.add_interval(Interval(float(intervalStart),intervalEnd))
+                    intersectTree.add(Interval(intervalStart,intervalEnd))
     if verbose: print("Merging Hits")
     # Merge Windows Right Next to one another that have the same pFam ID,
     # redoFlag: need to restart the process after a successful merge

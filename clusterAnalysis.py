@@ -282,7 +282,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
             intervalLength = intervalEnd-intervalStart+1
             # if the interval is less than the minimum domain size don't bother
             if intervalLength > minDomSize:
-                intersectingIntervals = sorted([(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)])
+                intersectingIntervals = [(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)]
                 overLapFlag = False
                 # for every interval that you're adding resolve the overlapping intervals
                 while len(intersectingIntervals) > 0 and intervalLength > 1:
@@ -318,7 +318,7 @@ def resolve_conflicts(pfam_hit_dict,minDomSize = 9,verbose=False):
                             intervalEnd = start - 1
                             # recalculate the interval length and see if there are still intersecting intervals
                         intervalLength = intervalEnd-intervalStart+1
-                        intersectingIntervals = sorted([(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)])
+                        intersectingIntervals = [(x.begin,x.end) for x in intersectTree.search(intervalStart,intervalEnd)]
 
                 if redoFlag:
                     if verbose: print("Exiting For Loop to Reinitialize",pfam_hit_dict)

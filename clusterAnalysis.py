@@ -552,7 +552,7 @@ def parse_hmmscan_domtbl_anot(path,minDomSize,anotID,proteinDict,cutoff_score=25
     return proteinDict
 
 def parse_hmmsearch_domtbl_anot(path,minDomSize,anotID,proteinDict,eval_cutoff=1e-5,cutoff_score=25,verbose = False,
-                                speciesFilter = None,proteinFilter = None):
+                                speciesFilter = None,proteinFilter = None,hmmFilter = None):
     """
     :param path: path to pfam hits that you want parsed
 
@@ -572,7 +572,8 @@ def parse_hmmsearch_domtbl_anot(path,minDomSize,anotID,proteinDict,eval_cutoff=1
                 gene_id_parse = gene_id.split('|')
                 species_id = gene_id_parse[0]
                 if ((not speciesFilter) or (species_id in speciesFilter)) and \
-                        ((not proteinFilter) or (gene_id in proteinFilter)):
+                        ((not proteinFilter) or (gene_id in proteinFilter)) and \
+                        ((not hmmFilter) or (hit[3] in hmmFilter)):
                     if score >= cutoff_score  and evalue <= eval_cutoff:
                         #check if you're done parsing the hits of the old gene and annotate the gene
                         coordinates = [int(x) for x in gene_id_parse[1].split('-')]
